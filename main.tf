@@ -98,8 +98,35 @@ module "ultralisk" {
 }
 
 
-
 data "local_file" "ssh_public_key" {
   filename = "./homelab.pub"
 }
 
+locals {
+  zergling_ips = [for vm in module.zergling : tostring(vm.vm_ipv4_address)] # Module calls with count concatenate the objects into a tuple
+  hydralisk_ips = [for vm in module.hydralisk : tostring(vm.vm_ipv4_address)]
+  swarmhost_ips = [for vm in module.swarmhost : tostring(vm.vm_ipv4_address)]
+  ultralisk_ips = [for vm in module.ultralisk : tostring(vm.vm_ipv4_address)]
+}
+
+resource "local_file" "ansible_inventory" {
+  filename = "./ansible_inventory.yml"
+
+  content  = <<-EOT
+      [zerglings]
+      ${join("\n",local.zergling_ips)}
+      [hydralisks]
+      ${join("\n",local.hydralisk_ips)}
+      [swarmhosts]
+      ${join("\n",local.swarmhost_ips)}
+      [ultralisks]
+      ${join("\n",local.ultralisk_ips)}
+  EOT
+
+  depends_on = [ 
+    module.zergling,
+    module.hydralisk,
+    module.swarmhost,
+    module.ultralisk
+  ]
+}
