@@ -97,20 +97,52 @@ module "ultralisk" {
   file_id = proxmox_virtual_environment_download_file.ubuntu_cloud_image.id
 }
 
+module "queen" {
+  source = "./control_nodes/queen"
+
+  providers = {
+    proxmox = proxmox
+  }
+  count = 3
+  name            = local.zerg_queens[count.index]
+  vm_id           = 9000 + count.index
+  node_name       = "vmware"
+  network_bridge  = "vmbr1"
+  ssh_key         = data.local_file.ssh_public_key.content
+  file_id = proxmox_virtual_environment_download_file.ubuntu_cloud_image.id
+}
+
+module "overmind" { #Jumpbox so doesn't need count or much resources
+  source = "./control_nodes/overmind"
+
+  providers = {
+    proxmox = proxmox
+  }
+
+  name            = "Overmind"
+  vm_id           = 500
+  node_name       = "vmware"
+  network_bridge  = "vmbr1"
+  ssh_key         = data.local_file.ssh_public_key.content
+  file_id = proxmox_virtual_environment_download_file.ubuntu_cloud_image.id
+}
+
 
 data "local_file" "ssh_public_key" {
   filename = "./homelab.pub"
 }
 
 locals {
+  zerg_queens = ["Kerrigan", "Zagara", "Niadra"]
   zergling_ips = [for vm in module.zergling : tostring(vm.vm_ipv4_address)] # Module calls with count concatenate the objects into a tuple
   hydralisk_ips = [for vm in module.hydralisk : tostring(vm.vm_ipv4_address)]
   swarmhost_ips = [for vm in module.swarmhost : tostring(vm.vm_ipv4_address)]
   ultralisk_ips = [for vm in module.ultralisk : tostring(vm.vm_ipv4_address)]
+  queen_ips = [for vm in module.queen : tostring(vm.vm_ipv4_address)]
 }
 
 resource "local_file" "ansible_inventory" {
-  filename = "./ansible_inventory.yml"
+  filename = "./ansible_inventory.ini"
 
   content  = <<-EOT
       [zerglings]
@@ -121,12 +153,18 @@ resource "local_file" "ansible_inventory" {
       ${join("\n",local.swarmhost_ips)}
       [ultralisks]
       ${join("\n",local.ultralisk_ips)}
+      [queens]
+      ${join("\n",local.queen_ips)}
+      [overmind]
+      ${module.overmind.vm_ipv4_address[0]}
   EOT
 
   depends_on = [ 
     module.zergling,
     module.hydralisk,
     module.swarmhost,
-    module.ultralisk
+    module.ultralisk,
+    module.queen,
+    module.overmind
   ]
 }
