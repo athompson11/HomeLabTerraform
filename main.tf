@@ -40,7 +40,7 @@ module "zergling" {
     proxmox = proxmox
   }
 
-  count = 10
+  count = 12
   name            = join("-", ["zergling", count.index + 1])
   vm_id           = 1000 + count.index
   node_name       = "vmware"
@@ -72,7 +72,7 @@ module "swarmhost" {
     proxmox = proxmox
   }
 
-  count = 4
+  count = 6
   name            = join("-", ["swarmhost", count.index + 1])
   vm_id           = 3000 + count.index
   node_name       = "vmware"
@@ -88,7 +88,7 @@ module "ultralisk" {
     proxmox = proxmox
   }
 
-  count = 3
+  count = 4
   name            = join("-", ["ultralisk", count.index + 1])
   vm_id           = 4000 + count.index
   node_name       = "vmware"
@@ -127,18 +127,39 @@ module "overmind" { #Jumpbox so doesn't need count or much resources
   file_id = proxmox_virtual_environment_download_file.ubuntu_cloud_image.id
 }
 
+module "rancher" {
+  source = "./control_nodes/rancher"
+  count = 3
+  providers = {
+    proxmox = proxmox
+  }
+
+  name            = local.farmer_names[count.index]
+  vm_id           = 6000 + count.index
+  node_name       = "vmware"
+  network_bridge  = "vmbr1"
+  ip_address      = local.farmer_ips[count.index]
+  file_id = proxmox_virtual_environment_download_file.ubuntu_cloud_image.id
+  ssh_key         = data.local_file.ssh_public_key.content
+  mac_address = local.farmer_macs[count.index]
+}
+
 
 data "local_file" "ssh_public_key" {
   filename = "./homelab.pub"
 }
 
 locals {
+  farmer_names = ["Brown", "Green", "Violent"]
   zerg_queens = ["Kerrigan", "Zagara", "Niadra"]
+  farmer_ips = ["10.10.10.247/24", "10.10.10.248/24", "10.10.10.249/24"]
+  farmer_macs = ["FA:F0:DE:AD:B3:3F", "B0:0B:50:CA:77:00", "AC:AB:AC:AB:AC:AB"]
   zergling_ips = [for vm in module.zergling : tostring(vm.vm_ipv4_address)] # Module calls with count concatenate the objects into a tuple
   hydralisk_ips = [for vm in module.hydralisk : tostring(vm.vm_ipv4_address)]
   swarmhost_ips = [for vm in module.swarmhost : tostring(vm.vm_ipv4_address)]
   ultralisk_ips = [for vm in module.ultralisk : tostring(vm.vm_ipv4_address)]
   queen_ips = [for vm in module.queen : tostring(vm.vm_ipv4_address)]
+  farmer_inventory_ips = [for vm in module.rancher : tostring(vm.vm_ipv4_address)]
 }
 
 resource "local_file" "ansible_inventory" {
@@ -157,6 +178,8 @@ resource "local_file" "ansible_inventory" {
       ${join("\n",local.queen_ips)}
       [overmind]
       ${module.overmind.vm_ipv4_address[0]}
+      [farmers]
+      ${join("\n",local.farmer_inventory_ips)}
   EOT
 
   depends_on = [ 

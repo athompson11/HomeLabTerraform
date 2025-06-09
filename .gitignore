@@ -37,3 +37,7 @@ homelab.pub
 ansible_inventory.yml
 
 ansible_inventory.ini
+
+.vscode/
+
+.ansible/

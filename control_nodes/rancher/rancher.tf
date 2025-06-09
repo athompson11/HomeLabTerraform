@@ -9,13 +9,13 @@ terraform {
 variable "name" {
   description = "Name of the VM, note that this is presumed to be provided by the caller as unique"
   type        = string
-  default     = "zergling"
+  default     = "Farmer"
 }
 
 variable "vm_id" {
   description = "ID of the VM"
   type        = number
-  default     = 1000
+  default     = 6000
 }
 
 variable "node_name" {
@@ -28,6 +28,18 @@ variable "network_bridge" {
   description = "Internal network bridge to connect the VM to"
   type        = string
   default     = "vmbr1"
+}
+
+variable "ip_address" {
+  description = "IP address to assign to the VM"
+  type        = string
+  default     = "192.168.1.100"
+}
+
+variable "mac_address" {
+  description = "MAC address for the VM's network interface"
+  type        = string
+  default     = "02:42:c0:a8:01:64" # Example MAC address, adjust as needed
 }
 
 variable "ssh_key" {
@@ -75,11 +87,12 @@ resource "proxmox_virtual_environment_file" "user_data_cloud_config" {
 }
 
 resource "proxmox_virtual_environment_vm" "ubuntu_vm" {
-  name      = var.name
+  name      = join("-", ["Farmer", var.name])
   node_name = var.node_name
   vm_id = var.vm_id
-  description = "Zergling (Generic Worker swarm)"
-  tags = ["zerg","zergling"]
+  description = join(" ", ["Farmer", var.name])
+  tags = ["Rancher"]
+
   agent {
     enabled = true
   }
@@ -90,8 +103,8 @@ resource "proxmox_virtual_environment_vm" "ubuntu_vm" {
   }
 
   memory {
-    dedicated = 4096 # Size in MB
-    floating  = 4096
+    dedicated = 8192
+    floating  = 8192
   }
 
   disk {
@@ -99,13 +112,14 @@ resource "proxmox_virtual_environment_vm" "ubuntu_vm" {
     file_id      = var.file_id
     interface    = "virtio0"
     iothread     = false
-    size         = 50 # Size in GB
+    size         = 100 # Size in GB
   }
 
   initialization {
     ip_config {
       ipv4 {
-        address = "dhcp"
+        address = var.ip_address
+        gateway = "10.10.10.1"
       }
     }
 
@@ -114,6 +128,7 @@ resource "proxmox_virtual_environment_vm" "ubuntu_vm" {
 
   network_device {
     bridge = var.network_bridge
+    mac_address = var.mac_address
   }
 
 }

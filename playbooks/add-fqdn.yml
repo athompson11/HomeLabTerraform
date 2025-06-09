@@ -1,0 +1,67 @@
+---
+- name: Gather host information from all hosts
+  hosts: all
+  remote_user: overmind
+  gather_facts: true
+  tasks:
+    - name: Set host info for each host
+      ansible.builtin.set_fact:
+        host_info: "{{ ansible_default_ipv4.address }} {{ ansible_hostname }} {{ ansible_hostname }}.abbie.dev"
+
+- name: Create hosts file and deploy to all hosts
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Create temporary hosts file
+      ansible.builtin.file:
+        path: /tmp/ansible_hosts_entries
+        state: touch
+        mode: '0644'
+
+    - name: Build hosts file content
+      ansible.builtin.lineinfile:
+        path: /tmp/ansible_hosts_entries
+        line: "{{ hostvars[item]['host_info'] }}"
+        create: true
+        mode: '0644'
+      loop: "{{ groups['all'] }}"
+      when: hostvars[item]['host_info'] is defined
+
+- name: Deploy hosts entries to all hosts
+  hosts: all
+  remote_user: overmind
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read temporary hosts file content
+      ansible.builtin.slurp:
+        src: /tmp/ansible_hosts_entries
+      delegate_to: localhost
+      register: hosts_content
+
+    - name: Add hosts entries to /etc/hosts
+      ansible.builtin.blockinfile:
+        path: /etc/hosts
+        block: "{{ hosts_content.content | b64decode }}"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - Homelab hosts"
+        backup: true
+        create: true
+        mode: '0644'
+
+    - name: Ensure /etc/hosts has proper permissions
+      ansible.builtin.file:
+        path: /etc/hosts
+        owner: root
+        group: root
+        mode: '0644'
+
+- name: Cleanup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Remove temporary hosts file
+      ansible.builtin.file:
+        path: /tmp/ansible_hosts_entries
+        state: absent

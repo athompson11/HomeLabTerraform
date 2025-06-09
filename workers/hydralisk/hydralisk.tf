@@ -79,7 +79,7 @@ resource "proxmox_virtual_environment_vm" "ubuntu_vm" {
   node_name = var.node_name
   vm_id = var.vm_id
   description = "Hydralisk (CPU optimized Worker swarm)"
-  
+  tags = ["hydralisk","zerg"]
   agent {
     enabled = true
   }
