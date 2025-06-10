@@ -180,6 +180,15 @@ resource "local_file" "ansible_inventory" {
       ${module.overmind.vm_ipv4_address[0]}
       [farmers]
       ${join("\n",local.farmer_inventory_ips)}
+      [internal:children]
+      zerglings
+      hydralisks
+      swarmhosts
+      ultralisks
+      queens
+      farmers
+      [internal:vars]
+      ansible_ssh_common_args='-o ProxyJump=overmind@{{ hostvars[groups["Overmind"][0]]["ansible_host"] }}'
   EOT
 
   depends_on = [ 

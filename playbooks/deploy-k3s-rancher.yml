@@ -1,0 +1,43 @@
+---
+- name: Deploy K3s and Rancher
+  hosts: Farmers[0]
+  remote_user: overmind
+  become: false
+  gather_facts: true
+  tasks:
+    - name: Download K3s install script
+      ansible.builtin.get_url:
+        url: https://get.k3s.io
+        dest: /tmp/k3s_install.sh
+        mode: '0755'
+
+    - name: Install K3s server
+      ansible.builtin.command:
+        cmd: sh /tmp/k3s_install.sh server --cluster-init
+      environment:
+        K3S_TOKEN: ACABACABACAB
+        K3S_KUBECONFIG_MODE: "644"
+      args:
+        creates: /usr/local/bin/k3s
+
+- name: Deploy k3s on other server nodes
+  hosts: Farmers[1:]
+  remote_user: overmind
+  become: false
+  gather_facts: true
+  tasks:
+    - name: Download K3s install script
+      ansible.builtin.get_url:
+        url: https://get.k3s.io
+        dest: /tmp/k3s_install.sh
+        mode: '0755'
+
+    - name: Install K3s agent
+      ansible.builtin.command:
+        cmd: sh /tmp/k3s_install.sh server
+      environment:
+        K3S_TOKEN: ACABACABACAB
+        K3S_KUBECONFIG_MODE: "644"
+        K3S_URL: "https://{{ hostvars[groups['Farmers'][0]]['ansible_fqdn'] }}"
+      args:
+        creates: /usr/local/bin/k3s
