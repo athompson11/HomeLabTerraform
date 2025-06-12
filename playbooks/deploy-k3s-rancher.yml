@@ -1,43 +1,30 @@
 ---
-- name: Deploy K3s and Rancher
-  hosts: Farmers[0]
+- name: Deploy K3s server
+  hosts: farmers[0]
   remote_user: overmind
   become: false
   gather_facts: true
   tasks:
-    - name: Download K3s install script
-      ansible.builtin.get_url:
-        url: https://get.k3s.io
-        dest: /tmp/k3s_install.sh
-        mode: '0755'
-
     - name: Install K3s server
-      ansible.builtin.command:
-        cmd: sh /tmp/k3s_install.sh server --cluster-init
-      environment:
-        K3S_TOKEN: ACABACABACAB
-        K3S_KUBECONFIG_MODE: "644"
+      ansible.builtin.shell:
+        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server" K3S_TOKEN="ACABACABACAB" K3S_KUBECONFIG_MODE="644" sh -s - --cluster-init --tls-san {{ ansible_hostname }}.abbie.dev
       args:
         creates: /usr/local/bin/k3s
 
-- name: Deploy k3s on other server nodes
-  hosts: Farmers[1:]
+    - name: Install Helm
+      ansible.builtin.shell:
+        cmd: curl -fsSL -o /tmp/get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && chmod 700 /tmp/get_helm.sh && /tmp/get_helm.sh
+      args:
+        creates: /usr/local/bin/helm
+
+- name: Deploy K3s agents
+  hosts: farmers[1:]
   remote_user: overmind
   become: false
   gather_facts: true
   tasks:
-    - name: Download K3s install script
-      ansible.builtin.get_url:
-        url: https://get.k3s.io
-        dest: /tmp/k3s_install.sh
-        mode: '0755'
-
     - name: Install K3s agent
-      ansible.builtin.command:
-        cmd: sh /tmp/k3s_install.sh server
-      environment:
-        K3S_TOKEN: ACABACABACAB
-        K3S_KUBECONFIG_MODE: "644"
-        K3S_URL: "https://{{ hostvars[groups['Farmers'][0]]['ansible_fqdn'] }}"
+      ansible.builtin.shell:
+        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server" K3S_TOKEN="ACABACABACAB" K3S_KUBECONFIG_MODE="644" K3S_URL="https://{{ hostvars[groups['farmers'][0]]['ansible_hostname'] }}.abbie.dev:6443" sh -s -
       args:
         creates: /usr/local/bin/k3s

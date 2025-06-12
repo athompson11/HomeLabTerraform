@@ -41,3 +41,5 @@ ansible_inventory.ini
 .vscode/
 
 .ansible/
+
+ansible.cfg

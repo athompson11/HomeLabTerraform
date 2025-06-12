@@ -40,7 +40,7 @@ module "zergling" {
     proxmox = proxmox
   }
 
-  count = 12
+  count = 8
   name            = join("-", ["zergling", count.index + 1])
   vm_id           = 1000 + count.index
   node_name       = "vmware"
@@ -56,7 +56,7 @@ module "hydralisk" {
     proxmox = proxmox
   }
 
-  count = 5
+  count = 4
   name            = join("-", ["hydralisk", count.index + 1])
   vm_id           = 2000 + count.index
   node_name       = "vmware"
@@ -72,7 +72,7 @@ module "swarmhost" {
     proxmox = proxmox
   }
 
-  count = 6
+  count = 5
   name            = join("-", ["swarmhost", count.index + 1])
   vm_id           = 3000 + count.index
   node_name       = "vmware"
@@ -88,7 +88,7 @@ module "ultralisk" {
     proxmox = proxmox
   }
 
-  count = 4
+  count = 3
   name            = join("-", ["ultralisk", count.index + 1])
   vm_id           = 4000 + count.index
   node_name       = "vmware"
@@ -188,8 +188,8 @@ resource "local_file" "ansible_inventory" {
       queens
       farmers
       [internal:vars]
-      ansible_ssh_common_args='-o ProxyJump=overmind@{{ hostvars[groups["Overmind"][0]]["ansible_host"] }}'
-  EOT
+      ansible_ssh_common_args='-o ProxyJump=overmind@{{ groups["overmind"][0] }}'  
+EOT
 
   depends_on = [ 
     module.zergling,

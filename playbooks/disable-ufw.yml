@@ -1,0 +1,10 @@
+---
+- name: Disable UFW on all hosts
+  hosts: all
+  remote_user: overmind
+  become: true
+  tasks:
+    - name: Disable UFW firewall
+      ansible.builtin.command: ufw disable
+      register: ufw_result
+      changed_when: "'Firewall stopped and disabled' in ufw_result.stdout"
